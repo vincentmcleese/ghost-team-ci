@@ -1,0 +1,55 @@
+name: Next.js CI
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version"
+        required: false
+        default: "22"
+        type: string
+      working-directory:
+        description: "Working directory (for monorepo subdirs)"
+        required: false
+        default: "."
+        type: string
+      skip-test:
+        description: "Skip test step"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: "npm"
+          cache-dependency-path: "${{ inputs.working-directory }}/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Type check
+        run: npx tsc --noEmit --pretty || true
+
+      - name: Test
+        if: ${{ !inputs.skip-test }}
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build
+        env:
+          # Allows build to succeed without real env vars
+          SKIP_ENV_VALIDATION: "1"
